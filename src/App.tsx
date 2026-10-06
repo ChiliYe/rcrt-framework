@@ -1,50 +1,25 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { platform } from "../public/platform";
+/** @format */
+
+import { useEffect, useRef } from "react";
 import "./App.scss";
+import { startGeneratorCanvasDemo } from "./lib/generatorCanvasDemo";
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+	const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  async function greet() {
-    setGreetMsg(await platform.greet(name));
-  }
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		if (!canvas) return;
 
-  return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+		return startGeneratorCanvasDemo(canvas);
+	}, []);
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
-  );
+	return (
+		<main className="container">
+			<h1>rcrt-demo</h1>
+			<canvas id="demo" ref={canvasRef} />
+		</main>
+	);
 }
 
 export default App;
