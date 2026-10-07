@@ -4,9 +4,10 @@ import { IConsole } from "../type.ts";
 
 export function openLogFile_web(): Promise<IConsole> {
 	return Promise.resolve({
-		note: () => {},
-		warn: () => {},
-		error: () => {},
-		fetal: () => {},
+		path: "",
+		note: async () => {},
+		warn: async () => {},
+		error: async () => {},
+		fetal: async () => {},
 	});
 }
