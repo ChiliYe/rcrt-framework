@@ -6,6 +6,14 @@ export interface FrameInput {
 	height: number;
 	moveX: number;
 	moveY: number;
+	previousFrame: PreviousFrameInfo | EmptyFrameInfo;
+}
+
+export type EmptyFrameInfo = Record<string, never>;
+
+export interface PreviousFrameInfo {
+	frameIndex: number;
+	state: BouncingBallState;
 }
 
 export interface CanvasDemoConfig {
@@ -41,22 +49,44 @@ export interface BouncingBallState {
 	elapsedSeconds: number;
 }
 
+export interface CanvasGlobal {
+	frameIndex: number;
+	elapsedSeconds: number;
+	positionX: number;
+	positionY: number;
+	velocityX: number;
+	velocityY: number;
+}
+
+export interface CanvasFrameMethods {
+	stop: () => void;
+}
+
 export interface CanvasFrame {
+	frameIndex: number;
 	input: FrameInput;
 	state: BouncingBallState;
+	method: CanvasFrameMethods;
 }
 
 export function* createBouncingBallFrames(
 	context: CanvasRenderingContext2D,
 	config: CanvasDemoConfig,
 	initialInput: FrameInput,
+	stop: () => void,
 ): Generator<CanvasFrame, void, FrameInput> {
 	const radius = config.sizes.ballRadius;
-	let positionX = initialInput.width / 2;
-	let positionY = initialInput.height / 2;
-	let velocityX = 180;
-	let velocityY = 130;
-	let elapsedSeconds = 0;
+	const global: CanvasGlobal = {
+		frameIndex: 0,
+		elapsedSeconds: 0,
+		positionX: initialInput.width / 2,
+		positionY: initialInput.height / 2,
+		velocityX: 180,
+		velocityY: 130,
+	};
+	const method: CanvasFrameMethods = { stop };
+	const clamp = (value: number, min: number, max: number) =>
+		Math.min(Math.max(value, min), max);
 	let input = initialInput;
 
 	while (true) {
@@ -68,26 +98,20 @@ export function* createBouncingBallFrames(
 			input.height - radius,
 		);
 
-		elapsedSeconds += deltaSeconds;
-		positionX +=
-			(velocityX + input.moveX * 240) * deltaSeconds;
-		positionY +=
-			(velocityY + input.moveY * 240) * deltaSeconds;
+		global.elapsedSeconds += deltaSeconds;
+		global.positionX +=
+			(global.velocityX + input.moveX * 240) * deltaSeconds;
+		global.positionY +=
+			(global.velocityY + input.moveY * 240) * deltaSeconds;
 
-		if (positionX < radius || positionX > maxX) {
-			positionX = Math.min(
-				Math.max(positionX, radius),
-				maxX,
-			);
-			velocityX *= -1;
+		if (global.positionX < radius || global.positionX > maxX) {
+			global.positionX = clamp(global.positionX, radius, maxX);
+			global.velocityX *= -1;
 		}
 
-		if (positionY < radius || positionY > maxY) {
-			positionY = Math.min(
-				Math.max(positionY, radius),
-				maxY,
-			);
-			velocityY *= -1;
+		if (global.positionY < radius || global.positionY > maxY) {
+			global.positionY = clamp(global.positionY, radius, maxY);
+			global.velocityY *= -1;
 		}
 
 		context.clearRect(0, 0, input.width, input.height);
@@ -96,8 +120,8 @@ export function* createBouncingBallFrames(
 
 		context.beginPath();
 		context.arc(
-			positionX,
-			positionY,
+			global.positionX,
+			global.positionY,
 			radius,
 			0,
 			Math.PI * 2,
@@ -108,20 +132,26 @@ export function* createBouncingBallFrames(
 		context.fillStyle = config.colors.text;
 		context.font = `${config.sizes.textFontSize}px monospace`;
 		context.fillText(
-			`Generator frame: ${elapsedSeconds.toFixed(2)}s`,
+			`Generator frame: ${global.elapsedSeconds.toFixed(2)}s`,
 			16,
 			26,
 		);
 
 		const state: BouncingBallState = {
-			x: positionX,
-			y: positionY,
-			velocityX,
-			velocityY,
+			x: global.positionX,
+			y: global.positionY,
+			velocityX: global.velocityX,
+			velocityY: global.velocityY,
 			radius,
-			elapsedSeconds,
+			elapsedSeconds: global.elapsedSeconds,
 		};
-		input = yield { input, state };
+		input = yield {
+			frameIndex: global.frameIndex,
+			input,
+			state,
+			method,
+		};
+		global.frameIndex += 1;
 	}
 }
 
@@ -156,24 +186,45 @@ export function startGeneratorCanvasDemo(
 	window.addEventListener("keyup", onKeyUp);
 	window.addEventListener("blur", onWindowBlur);
 
+	const emptyFrameInfo: EmptyFrameInfo = {};
+	let running = true;
+	let animationId = 0;
+	let frames: Generator<CanvasFrame, void, FrameInput> | undefined;
+	const stop = () => {
+		if (!running) return;
+		running = false;
+		cancelAnimationFrame(animationId);
+		window.removeEventListener("keydown", onKeyDown);
+		window.removeEventListener("keyup", onKeyUp);
+		window.removeEventListener("blur", onWindowBlur);
+		frames?.return();
+	};
 	const initialInput: FrameInput = {
 		deltaMs: 0,
 		width: canvas.width,
 		height: canvas.height,
 		moveX: 0,
 		moveY: 0,
+		previousFrame: emptyFrameInfo,
 	};
-	const frames = createBouncingBallFrames(
+	frames = createBouncingBallFrames(
 		context,
 		config,
 		initialInput,
+		stop,
 	);
 	const initialFrame = frames.next();
-	if (!initialFrame.done) onFrame?.(initialFrame.value);
+	let previousFrame: PreviousFrameInfo | EmptyFrameInfo =
+		emptyFrameInfo;
+	if (!initialFrame.done) {
+		onFrame?.(initialFrame.value);
+		previousFrame = {
+			frameIndex: initialFrame.value.frameIndex,
+			state: initialFrame.value.state,
+		};
+	}
 
-	let running = true;
 	let previousTime = 0;
-	let animationId = 0;
 
 	const tick = (timestamp: number) => {
 		if (!running) return;
@@ -191,23 +242,23 @@ export function startGeneratorCanvasDemo(
 			moveY:
 				Number(pressedKeys.has("ArrowDown")) -
 				Number(pressedKeys.has("ArrowUp")),
+			previousFrame,
 		};
 		previousTime = timestamp;
 
-		const result = frames.next(frameInput);
-		if (!result.done) onFrame?.(result.value);
+		const result = frames?.next(frameInput);
+		if (result && !result.done) {
+			onFrame?.(result.value);
+			previousFrame = {
+				frameIndex: result.value.frameIndex,
+				state: result.value.state,
+			};
+		}
 
-		animationId = requestAnimationFrame(tick);
+		if (running) animationId = requestAnimationFrame(tick);
 	};
 
-	animationId = requestAnimationFrame(tick);
+	if (running) animationId = requestAnimationFrame(tick);
 
-	return () => {
-		running = false;
-		cancelAnimationFrame(animationId);
-		window.removeEventListener("keydown", onKeyDown);
-		window.removeEventListener("keyup", onKeyUp);
-		window.removeEventListener("blur", onWindowBlur);
-		frames.return();
-	};
+	return stop;
 }
