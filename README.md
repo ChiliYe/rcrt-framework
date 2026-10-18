@@ -51,8 +51,15 @@ cd rcrt-framework
 
 ```bash
 chmod +x ./bashscript/makeproj.sh #可能需要添加执行权限
-./bashscript/makeproj.sh
+./bashscript/makeproj.sh <您的项目名> <您的开发团队名>
 ```
 
 4. 编辑或更管您的许可证：值得注意的是，本项目采用MIT许可证，所以您可以将您的项目用于商业应用
 5. 开始您的开发吧！
+6. 如果需要后续更新，直接使用clone复制仓库
+
+```bash
+git clone https://github.com//ChiliYe/rcrt-framework.git
+```
+
+注意，不适用于您已经更改框架本体的情况

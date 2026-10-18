@@ -9,6 +9,7 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
+# 更改所有的项目名称
 new_project_name=$1
 
 project_name_file_ist=("./package.json" "./package-lock.json" "./src-tauri/Cargo.toml" "./src-tauri/tauri.conf.json") # 定义需要更改的文件列表
@@ -17,6 +18,19 @@ for file in ${project_name_file_ist[@]}; do
     if [ -f "$file" ]; then
         sed -i "s/rcrt-framework/$new_project_name/g" "$file"
         echo "Updated project name in $file"
+    else
+        echo "File $file does not exist.Skip."
+    fi
+done
+
+# 更改chilis为传入的参数2
+
+new_author_name=$2
+
+for file in ${project_name_file_ist[@]}; do
+    if [ -f "$file" ]; then
+        sed -i "s/chilis/$new_author_name/g" "$file"
+        echo "Updated author name in $file"
     else
         echo "File $file does not exist.Skip."
     fi
