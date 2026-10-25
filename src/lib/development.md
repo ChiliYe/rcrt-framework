@@ -22,8 +22,8 @@ i18n/
 
 ```ts
 export default {
-	title: "Welcome to the demo!",
-	language: "Language",
+  title: "Welcome to the demo!",
+  language: "Language",
 };
 ```
 
@@ -104,20 +104,36 @@ Generator<
 5. 状态更新后，生成器绘制画布并创建本帧的 `state`，再通过 `yield` 产出帧。每次恢复执行后内部帧索引递增；调用方保存本帧索引和状态，供下一帧使用。
 6. `method` 由生成器创建并随帧结果返回，供外部调用。示例中的 `method.stop` 会取消动画调度、移除事件监听并结束生成器；仅供生成器使用的辅助逻辑（如位置限制）留在生成器内部，不通过 `method` 暴露。
 
-## rcrt的图形种类
+## rcrt的封装图形
 
-### pattern
+### 种类
+
+#### pattern
 
 图章：用于封装可复用的图案（一般是需要多次修改的）
 
-### entity
+##### 逻辑
+
+通过一个类 `Pattern` 来操作
+
+创建 `Pattern` 类，接受一个图章生成器并返回一个 `Pattern` 对象。`Pattern` 类只保存生成器，不保存绘制上下文，因此同一个 `Pattern` 对象可用于多个 Canvas。
+
+`Pattern` 对象可通过 `create(ctx, ...args)` 方法配合图章方法预定义的参数创建真实的 Pattern。每次调用都会创建一个独立的真实 Pattern 对象，其中保存该 Canvas 的 `ctx` 和帧迭代器 `frames`；生成器接收 `ctx` 作为第一个参数，其余参数按顺序传入。
+
+`create` 会使用该上下文启动生成器并绘制第一帧，随后返回真实的 Pattern 对象；后续通过其 `frames` 迭代器更新。
+
+#### entity
 
 实体：本质上是一个状态机，会因为外部输入而多次修改，用于玩家、游戏实体等
 
-### scene
+#### scene
 
 场景：用于在单页面下不变的场景元素
 
-### uibox
+#### uibox
 
 交互盒：用于ui
+
+### 使用
+
+scene和静态的uibox通常不会经常变化，为了提高渲染效率，请一定把他们放在同一个Canvas并和pattern、entity、频繁变化的uibox所在的Canvas分开
